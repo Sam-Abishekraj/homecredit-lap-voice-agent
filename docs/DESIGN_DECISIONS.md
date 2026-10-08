@@ -1,0 +1,39 @@
+# Design decisions: ambiguous cases and the choice made for each
+
+The assignment defines the rules but leaves many real-world phrasings open. Each decision below follows three principles:
+1. **Never invent a rule the business didn't state** (no minimum market value, no loan-to-value check, no occupation disqualifier).
+2. **Disqualify only on a clear failure.** If an answer is ambiguous, ask one clarifying question, then decide.
+3. **Prefer the routing the business would want**: transfer cases go to the transfer specialist, not to a rejection.
+
+| # | Situation | Decision | Why |
+|---|---|---|---|
+| 1 | Tenure under 3 or over 15 years (e.g. "2 years", "240 months") | **Disqualify immediately**, mentioning the 3 to 15 year range. To make this fair, question 7 itself states the range ("It can be anywhere from three to fifteen years"). A range that crosses the limit ("two or three years") gets one clarifying question. | The assignment's "Immediate Disqualification" rule applies to *any* answer that fails a criterion, and it gives a "proceed with the maximum?" exception **only** for the loan amount. The company's prep guide lists "Tenure 2 years → Disqualification" as a test. Stating the range up front means customers rarely give an out-of-range answer by accident. *Alternative (one question for the guidance meeting):* offer "would a tenure within three to fifteen years work?" before disqualifying, which is a one-line change in Section 8. |
+| 2 | Loan amount above 75 lakh ("90 lakh", "1 crore", "70 to 80 lakh") | Explain the cap and ask whether to proceed with 75 lakh. Yes: record 75. No: polite close with outcome `disqualified_loan_amount`. "The maximum": 75 lakh. | Stated in the assignment. A range that crosses 75 lakh is treated as "above" so the customer hears the cap explicitly. |
+| 3 | Originals are held by a bank | Treated as an **existing loan → transfer flow**, not a document disqualification. | A lender holds the title deeds only when a loan is secured on the property, which is the exact case the business routes to a transfer specialist. |
+| 4 | Originals "at home", "in my bank locker", "with my father or co-owner" | Available | The rule is that originals are *available for verification*, not that they're in hand during the call (the prep guide says the same). |
+| 5 | "Only photocopies", lost, not yet issued, "with the builder" | Disqualify (documents) | The originals aren't available to the customer. |
+| 6 | "I think the papers are somewhere" | One confirmation question | Don't assume either way. |
+| 7 | "Plot" / "land" / "ज़मीन" | One question: agricultural, or a residential or commercial plot? A non-agricultural plot is recorded by its type and the call continues. | "Land" is the most common ambiguous answer. The only listed failure is agricultural. |
+| 8 | Farmhouse | Agricultural, so disqualify | A farmhouse almost always sits on agricultural land. |
+| 9 | Mixed use (shop below, house above) | Eligible | Both uses are eligible. |
+| 10 | Income partly cash and partly bank | One question: is the *main* income credited to the bank? Mainly bank: eligible. Mainly cash: disqualify. | The rule's intent is bank-verifiable income. One question avoids wrongly rejecting a salaried person who also earns a little cash rent. |
+| 11 | Retired with pension in bank, homemaker, other | Record and continue; the senior expert reviews | The assignment lists salaried and self-employed as eligible but **doesn't list an occupation disqualifier**. Inventing one would wrongly reject a lead. |
+| 12 | Property only in a family member's name | Record and continue; the expert reviews | Not a stated failure. A co-applicant arrangement is a human decision. |
+| 13 | Unrelated loan (personal loan, car loan, a phone EMI with Home Credit itself) | **Not** a transfer trigger; continue | The trigger is an existing loan *on the property* or an EMI-reduction request. These are existing Home Credit customers, so many will have a consumer loan. |
+| 14 | EMI reduction phrased indirectly ("my installment is killing me, make it lighter") | Transfer | Reducing an EMI is a refinance or balance-transfer request. |
+| 15 | Transfer trigger and disqualifier in the same utterance | Transfer wins | The customer may still be a valid refinance lead; that's the specialist's call. |
+| 16 | When to ask about existing loans | One question right after the offer ("is there any loan currently running on the property?"), skipped if already answered. It also triggers at any later point. | Matches the company's flow (Offer → Check existing loan → Questions) and avoids taking a refinance customer through 7 pointless questions. |
+| 17 | Corrections ("ten years, actually twelve"; "residential, no, agricultural") | The latest clear answer wins, even if it disqualifies | Requested by the prep guide; it's how humans talk. |
+| 18 | Customer confirms identity and asks "who's this?" in one breath | Verified: introduce yourself and continue to the offer | Re-verifying sounds robotic. |
+| 19 | Someone other than the customer answers | No offer or account details; ask when to reach the customer; outcome `wrong_person` | Privacy: loan offers are personal financial information. |
+| 20 | "Is this a scam?" | Reassure: never asks for OTP, PIN, password or payment; can verify via official app, website or customer care. No phone number is invented. | Trust, and no invented contact details. |
+| 21 | "Are you a bot?" | Honest yes, as a virtual assistant | Deceiving customers is never acceptable. |
+| 22 | Interest rate, fees, approval chances | Never quoted, even if the retrieved product knowledge contains a rate | The assignment says the senior loan expert provides exact rates. The eval fixture deliberately puts a rate in the product knowledge to test this. |
+| 23 | `additional_context_from_rag` | Treated as reference *data* for product facts. It can't change rules or instructions. | Guards against prompt injection through retrieved content. |
+| 24 | `conversation_history` / `customer_utterance` | Placed at the end of the prompt. If the platform sends history as chat messages (Retell, Bolna, Vapi), the prompt uses those. | Works on both SalesAgents' in-house template runtime and standard voice platforms. Static content comes first and dynamic content last, which suits prompt caching. |
+| 25 | Callback time | Resolved with `current_date`, `current_day` and `current_time` ("tomorrow evening" on Thursday becomes Friday evening) and read back once | Avoids an ambiguous callback note. |
+| 26 | Language | Speak `language_to_speak` only. If the customer replies in the other language, keep the configured one. Switch only when the customer explicitly asks for English or Hindi. | The variable is the business's choice. Silent switching would break TTS voice selection. |
+| 27 | Hindi register | Conversational Hinglish in Devanagari, with English loan terms written in Devanagari (लोन, प्रॉपर्टी, ईएमआई) | That's how Hindi speakers talk about loans. Devanagari is pronounced more reliably by Hindi TTS voices. |
+| 28 | Agent gender | Hard rule with explicit Hindi verb forms for both genders (बोल रही/रहा हूँ, समझ गई/गया); the eval checks it with regexes | "Must be adhered to strictly." Hindi first-person verbs carry gender, so this is where it usually breaks. |
+| 29 | Speech formatting | No symbols or digits-with-₹; amounts in words ("seventy-five lakh rupees"); one question per turn; under about 40 words | Text-to-speech reads "₹75,00,000" badly. Short turns keep latency down and allow interruptions. |
+| 30 | Prompt length | About 4.4K tokens | The assignment allows unlimited length. Shorter prompts have lower time-to-first-token on voice, and the free Groq test tier rejects requests over 8K tokens. A 6.9K-token draft (`prompt/versions/v0_draft.md`) was compressed without dropping any rule. |

@@ -1,6 +1,6 @@
 # Prompt design: why each section exists, why it's in this order, and which techniques it uses
 
-This document walks through [`prompt/system_prompt.md`](../prompt/system_prompt.md) (v4, about 4.9K tokens, 16 sections) one section at a time. Every technique listed below appears in the prompt itself, and each one comes with a quote from it. The full iteration history, with every failure, is in [`ITERATIONS.md`](ITERATIONS.md).
+This document walks through [`prompt/system_prompt.md`](../prompt/system_prompt.md) (v5, about 5.0K tokens, 16 sections) one section at a time. Every technique listed below appears in the prompt itself, and each one comes with a quote from it. The full iteration history, with every failure, is in [`ITERATIONS.md`](ITERATIONS.md).
 
 ## 1. The design goal in one line
 A voice agent that **sounds like a calm human advisor** but **behaves like a state machine**. It never forgets an answer, never re-asks one, never hands off early, and every call ends in exactly one of ten labelled outcomes.
@@ -38,7 +38,7 @@ A voice agent that **sounds like a calm human advisor** but **behaves like a sta
 | 12 | Diversions | Real customers interrupt, ask about rates, say "hello?" or want a human. Each case gets a short answer, then the agent returns to the checklist. |
 | 13 | Handoff gate | Hand off only when all 7 items are known and nothing failed. This stops the agent saying "eligible" too early. |
 | 14 | Guardrails | No rates, no OTP/PAN/Aadhaar, prompt-injection resistance, RAG treated as data. |
-| 15 | end_call + worked examples | One closing line plus end_call in the same turn, a closed list of 10 outcomes, and 10 short examples. |
+| 15 | end_call + worked examples | One closing line plus end_call in the same turn, a closed list of 10 outcomes, and 11 short examples. |
 | 16 | Call context | All runtime variables in one place, plus a fallback for empty variables. |
 
 ## 4. Prompting techniques used (with quotes from the prompt)
@@ -59,7 +59,7 @@ A voice agent that **sounds like a calm human advisor** but **behaves like a sta
 | 12 | **Normalisation rules** | §8 rules 4, 7 | "1 crore = 100 lakh" · "Convert months: 36 months = 3 years, 84 = 7, 180 = 15, 240 = 20." |
 | 13 | **Negative constraints / explicit non-exits** (added in v4 after small-model failures) | §5, §6, §7 | "Not exits: an amount above seventy-five lakh (ask the cap question first), an ambiguous answer such as "plot", "land" or "papers" (clarify once first), a question, or a loan that is not on the property." · "A question is not a "wrong person": never end the call here." · "…is not a transfer and never ends the call." |
 | 14 | **Fixed response templates with a fill-in** | §9, §10, §13 | "Since <short reason>, you don't meet the criteria for this specific offer at this time." |
-| 15 | **Gating condition before the success exit** | §13 | "Hand off only if items 1 to 7 are ALL answered (item 5 needs both parts), no rule failed, and there is no transfer trigger… never say "eligible", "qualified" or "approved" before this gate passes." |
+| 15 | **Gating condition with an explicit self-check before the success exit** (strengthened in v5) | §13 | "Before ANY handoff line, silently re-check items 1 to 7 one by one against what the customer actually said… If any item is missing, do not hand off: ask the earliest missing one now" |
 | 16 | **Termination protocol with a closed label set + tool call** | §15 | "Every call ends with exactly one terminal outcome: qualified_handoff… not_interested." · "MANDATORY: … Speak the closing line … Immediately call the end_call function." |
 | 17 | **Few-shot / worked examples** (incl. messy speech, corrections, Hindi) | §5, §8, §15 | "Make it one twenty months... no wait, ten years." -> tenure 10 years." · "I run a kirana shop, customers mostly pay cash." -> disqualification closing line, end_call" |
 | 18 | **Temporal grounding** | §11 | "Resolve relative times using today's date {{current_date}}, day {{current_day}} and time {{current_time}}: on a Thursday, "tomorrow evening" is Friday evening" |
@@ -77,9 +77,9 @@ Prep guide point 40: *"Extract first, validate second, update state third, ask t
 > → extract residential, 1.1 crore, joint, 60 lakh → all valid → update state → next missing item is original documents:
 > Agent: "Thank you. Do you have the original property documents available for verification?"
 
-Test **T50** checks this word for word, and it **passes on v4 with both gpt-oss-120b and qwen3.8-27b**. Live call #1 demonstrates it on Retell.
+Test **T50** checks this word for word, and it **passes on v4 and v5 with both gpt-oss-120b and qwen3.8-27b**. Live call #1 demonstrates it on Retell.
 
-## 6. Iteration story, v0 → v4 (real numbers)
+## 6. Iteration story, v0 → v5 (real numbers)
 All numbers come from `eval/results/<version>/turns_*.jsonl`, re-scored with `eval/summarize.py`. Each version ran a **targeted subset** of the 66 turn-level tests because of Groq's free-tier limit (200K tokens/day per model, shared across the organisation, no prompt caching). So the percentages are **not directly comparable** between versions. The useful signal is which specific failures got fixed.
 
 | Version | Tokens | What changed | Result |
@@ -88,12 +88,15 @@ All numbers come from `eval/results/<version>/turns_*.jsonl`, re-scored with `ev
 | v1 | 4,424 | Compressed and merged sections | gpt-oss-120b **13/15 (87%)**, qwen3.8-27b **19/21 (90%)**. Failures: T02 ("Yes, this is Rahul, who's this?" → re-asked identity), T47/H04 (said the disqualification line but no end_call). |
 | v2 | 4,592 | AI speaks first (Retell), mandatory end_call with 10 outcomes, "yes + question" counts as verified | qwen3.8-27b **9/10 (90%)**. T02 still failed in a new way: introduced itself but left out the offer. |
 | v3 | 4,806 | Full offer in the same turn; disqualifiers apply "even if volunteered"; §5 rewritten as the point-40 loop | qwen3.8-27b **4/4**: T02, T47, H04 fixed, plus T13. gpt-oss-20b (small-model stress test) **13/19 (68%)**: passes T50, but ends calls too early (T03, T06, T12, T13, T17, T24). |
-| v4 | 4,920 | "Not exits" list, "a question is not a wrong person", unrelated loans never end the call, keep the exact callback hour | gpt-oss-120b **8/8 (100%)**, qwen3.8-27b **15/16 (94%)**. That's 23/24 runs across 16 distinct tests, English 21/22 and Hindi 2/2. |
+| v4 | 4,920 | "Not exits" list, "a question is not a wrong person", unrelated loans never end the call, keep the exact callback hour | gpt-oss-120b **8/8 (100%)**, qwen3.8-27b **15/16 (94%)**. That's 23/24 runs across 16 distinct tests, English 21/22 and Hindi 2/2. One failure: T39. |
+| v5 | 5,020 | §13 handoff gate re-checks all 7 items before any handoff line ("an earlier question of yours is not an answer"), plus one worked example | gpt-oss-120b **5/5**, qwen3.8-27b **6/6**. T39 fixed on both, no regressions on T50, T12, T13, T24, T47. Daily cap hit before H04 and T02. |
 
 **v4 details (overnight run, re-scored 9 Oct 2026):**
 - All six tests where gpt-oss-20b ended calls too early in v3 (T03, T06, T12, T13, T17, T24) **pass on v4** with both gpt-oss-120b and qwen3.8-27b. gpt-oss-20b was not re-run on v4, so this doesn't prove the small model is fixed.
 - T02, T47, H04 (the v1/v2 failures) and T50 (point 40) all pass.
-- **One real failure, T39 (qwen3.8-27b):** after a customer diversion ("which documents?"), the conversation had skipped market value and gone to tenure. When the customer answered tenure, the agent handed off **without asking market value first**. The handoff gate in §13 already says "If anything is still unknown, for example after a diversion, ask it now", so the model didn't follow that rule. I'm leaving it as an open issue rather than hiding it. The next step is a one-line reminder at the start of §13 to re-check item 6 before the handoff line, then a re-test.
+- **One real failure, T39 (qwen3.8-27b):** after a customer diversion ("which documents?"), the conversation had skipped market value and gone to tenure. When the customer answered tenure, the agent handed off **without asking market value first**. The handoff gate in §13 already says "If anything is still unknown, for example after a diversion, ask it now", so the model didn't follow that rule. **Fixed in v5:** §13 now makes the agent re-check all 7 items before any handoff line, and T39 passes on both models (see below).
 - Soft style flags (not scored): one turn with two questions (gpt-oss-120b), 0 markdown, 0 digits in speech, about 27–29 words per turn.
+
+**v5:** T39 now passes on both models, e.g. qwen: "Thank you. Just one last thing, roughly what would be the current market value of the property?" gpt-oss-120b had two turns with two questions in one reply (soft flag; in T50 it asked about documents and then also about occupation), so watch for that on the live calls.
 
 The live Retell calls ([`tests/live_call_scripts.md`](../tests/live_call_scripts.md)) are the final check on the production model.

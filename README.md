@@ -2,9 +2,9 @@
 
 This is the **SalesAgents AI "AI Intern (Prompt Engineer)" assignment**: a single system prompt for an outbound voice agent that pre-qualifies existing Home Credit customers for a pre-approved **Loan Against Property (up to ₹75 lakh)**, then hands qualified customers to a senior loan expert. It runs on **Retell AI**.
 
-- **The prompt:** [`prompt/system_prompt.md`](prompt/system_prompt.md), about 4.9K tokens, using all 11 assignment variables as `{{variable}}`
+- **The prompt:** [`prompt/system_prompt.md`](prompt/system_prompt.md), about 5.0K tokens (v5), using all 11 assignment variables as `{{variable}}`
 - **Live calls:** recordings and transcripts in the table below
-- **Why the prompt looks like this:** [`docs/PROMPT_DESIGN.md`](docs/PROMPT_DESIGN.md): section-by-section reasoning, 22 prompting techniques with quotes, and the v0→v4 iteration story
+- **Why the prompt looks like this:** [`docs/PROMPT_DESIGN.md`](docs/PROMPT_DESIGN.md): section-by-section reasoning, 22 prompting techniques with quotes, and the v0→v5 iteration story
 - **How it was built:** [`docs/APPROACH.md`](docs/APPROACH.md): Requirements → Eligibility rules → State variables → Decision tree → Conversation rules → Edge cases → Prompt → Testing matrix
 
 ## The core idea: extract → validate → update → ask next
@@ -72,6 +72,8 @@ Results so far (real, **partial**: Groq's free tier allows about 35 tests per mo
 | v3 | | gpt-oss-20b (small-model stress test) | 13/19 |
 | v4 | guardrails against early exits ("not exits" list) | gpt-oss-120b | **8/8** (all six v3 early-exit failures pass) |
 | v4 | | qwen3.8-27b | **15/16** (1 failure: T39, handed off without asking a skipped item) |
+| v5 | handoff gate re-checks all 7 items (T39 fix) | gpt-oss-120b | **5/5** (T39, T50, T12, T13, T24; then daily cap) |
+| v5 | | qwen3.8-27b | **6/6** (T39, T50, T12, T13, T24, T47; then daily cap) |
 <!-- RESULTS_END -->
 
 ### Run it yourself
@@ -87,7 +89,7 @@ python eval/run_eval.py --version v4 --only E01,E04 --sim-key GROQ_API_KEY   # s
 ## Repo layout
 ```
 prompt/system_prompt.md      the prompt (paste into Retell)
-prompt/versions/             v0_draft, v1, v2, v3, v4
+prompt/versions/             v0_draft, v1, v2, v3, v4, v5
 docs/                        PROMPT_DESIGN, APPROACH, FLOW (mermaid), RULES_TABLE, DESIGN_DECISIONS, TESTING_MATRIX, ITERATIONS, PLATFORM
 eval/                        Groq client, turn tests, simulated-call scenarios, checks, runners, results/
 tests/live_call_scripts.md   12 live-call scripts (+2 Hindi)

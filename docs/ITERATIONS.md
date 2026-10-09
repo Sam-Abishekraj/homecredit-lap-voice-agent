@@ -56,6 +56,19 @@ Results (overnight run, re-scored 9 Oct 2026):
 
 **Open failure, T39 (qwen):** after a diversion skipped market value, the agent handed off without asking it, even though §13 says to ask any still-unknown item first. Planned fix: a one-line re-check of item 6 at the top of §13, then a re-test. gpt-oss-20b was not re-run on v4.
 
+## v5: handoff gate re-check (5,020 tokens)
+Change (§13 only, plus one worked example in §15): before ANY handoff line, the agent silently re-checks all 7 items against what the customer actually said, because "side questions and diversions often skip an item, so an earlier question of yours is not an answer". If any item is missing it asks the earliest one ("Just one last thing,...") and does not hand off.
+
+| Model | Passed | Tests |
+|---|---|---|
+| gpt-oss-120b | **5/5** | T39, T50, T12, T13, T24. Then the daily cap was hit (T47, H04, T02 not run). |
+| qwen3.8-27b | **6/6** | T39, T50, T12, T13, T24, T47. Then the daily cap was hit (H04, T02 not run). |
+
+- **T39 now passes on both models.** qwen: "Thank you. Just one last thing, roughly what would be the current market value of the property?" 120b: "Thank you. Could you share a rough estimate of the current market value of the flat?"
+- No regressions on the tests that ran (T50 point 40, T12 unrelated EMI, T13 all-at-once handoff, T24 cap, T47 cash income).
+- Soft style flag (not scored): gpt-oss-120b had 2 turns with two questions. In T50 it asked about documents and then also asked about occupation in the same reply. qwen had 0. Watch for this in the live calls.
+- H04 (Hindi) and T02 were not re-run on v5 because of the quota. The v5 change touches only the handoff gate; those tests passed on v4.
+
 ## Eval-infrastructure findings (honest notes)
 - **Groq limits are per organisation**, not per key. Running two keys in parallel just splits the same 200K/day budget.
 - **No prompt caching** on this account (`cached_tokens` is always 0), so each turn re-pays the full ~4.9K prompt. That's why the main layer is **turn-level golden tests** (one API call per test) rather than full simulated calls (~15 calls each). The simulated-call harness (`eval/run_eval.py`, 39 scenarios, customer simulator on gpt-oss-20b) is built and working, but it wasn't run at scale for budget reasons.

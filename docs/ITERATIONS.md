@@ -47,7 +47,14 @@ These target the v3 small-model failures; a stronger model shouldn't need them, 
 - Section 7: an unrelated loan "never ends the call"; ask property type next.
 - Section 11: keep the customer's exact hour and put the same day/time in callback_time.
 
-Results: see the v4 table in the README (filled in from `eval/results/v4/` as the slow runner finishes; see below).
+Results (overnight run, re-scored 9 Oct 2026):
+
+| Model | Passed | Notes |
+|---|---|---|
+| gpt-oss-120b | **8/8 (100%)** | T02, T03, T06, T12, T13, T17, T24, T50. All six v3 early-exit failures pass. |
+| qwen3.8-27b | **15/16 (94%)** | English 13/14, Hindi 2/2. Passes T00, T00F, T02, T03, T06, T12, T13, T14, T17, T20, T24, T47, T50, H04, H10. |
+
+**Open failure, T39 (qwen):** after a diversion skipped market value, the agent handed off without asking it, even though §13 says to ask any still-unknown item first. Planned fix: a one-line re-check of item 6 at the top of §13, then a re-test. gpt-oss-20b was not re-run on v4.
 
 ## Eval-infrastructure findings (honest notes)
 - **Groq limits are per organisation**, not per key. Running two keys in parallel just splits the same 200K/day budget.

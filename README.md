@@ -4,6 +4,7 @@ This is the **SalesAgents AI "AI Intern (Prompt Engineer)" assignment**: a singl
 
 - **The prompt:** [`prompt/system_prompt.md`](prompt/system_prompt.md), about 4.9K tokens, using all 11 assignment variables as `{{variable}}`
 - **Live calls:** recordings and transcripts in the table below
+- **Why the prompt looks like this:** [`docs/PROMPT_DESIGN.md`](docs/PROMPT_DESIGN.md): section-by-section reasoning, 22 prompting techniques with quotes, and the v0→v4 iteration story
 - **How it was built:** [`docs/APPROACH.md`](docs/APPROACH.md): Requirements → Eligibility rules → State variables → Decision tree → Conversation rules → Edge cases → Prompt → Testing matrix
 
 ## The core idea: extract → validate → update → ask next
@@ -18,6 +19,11 @@ Customers rarely answer one question at a time. Every turn, the agent runs four 
 > Agent (records property type, value, ownership and amount): *"Thank you. Do you have the original property documents available for verification?"*
 
 Test `T50` checks this exact exchange, and live call #1 demonstrates it.
+
+## Prompt design & techniques
+Full write-up: [`docs/PROMPT_DESIGN.md`](docs/PROMPT_DESIGN.md). In short:
+- **Order:** who you are (role, gender, language) → how you speak (voice style) → how you think each turn (the point-40 loop) → the call in time order (greeting, offer, checklist) → exits that can happen at any stage (transfer, disqualify, callback) → diversions → handoff gate → guardrails → end_call protocol and worked examples → runtime variables last.
+- **Techniques:** role/persona prompting with authority limits; `{{variable}}` templating for all 11 variables; language and gender conditioning with contrastive Hindi verb forms; voice-specific output rules (one question per turn, numbers in words, no symbols); a silent per-turn procedure (extract → validate → update → ask); slot filling with "first missing item" selection; priority-ordered validation and conflict rules; eligible/disqualify/clarify-once decision rules; negative constraints ("A question is not a wrong person: never end the call here"); fixed response templates; a handoff gate; a termination protocol with 10 closed outcomes + `end_call`; few-shot worked examples (including messy speech, corrections and Hindi); temporal grounding for callbacks; guardrails (no rates, no OTP/PAN, prompt-injection resistance, RAG treated as data, not instructions).
 
 ## What the agent does
 | Stage | Behaviour |
@@ -64,7 +70,8 @@ Results so far (real, **partial**: Groq's free tier allows about 35 tests per mo
 | v2 | Retell: AI speaks first, mandatory end_call | qwen3.8-27b | 9/10 |
 | v3 | full offer on "yes, who's this?", volunteered disqualifiers, point-40 algorithm | qwen3.8-27b | 4/4 (all 3 earlier failures fixed) |
 | v3 | | gpt-oss-20b (small-model stress test) | 13/19 |
-| v4 | guardrails against early exits | running | see ITERATIONS.md |
+| v4 | guardrails against early exits ("not exits" list) | gpt-oss-120b | **8/8** (all six v3 early-exit failures pass) |
+| v4 | | qwen3.8-27b | **15/16** (1 failure: T39, handed off without asking a skipped item) |
 <!-- RESULTS_END -->
 
 ### Run it yourself
@@ -81,7 +88,7 @@ python eval/run_eval.py --version v4 --only E01,E04 --sim-key GROQ_API_KEY   # s
 ```
 prompt/system_prompt.md      the prompt (paste into Retell)
 prompt/versions/             v0_draft, v1, v2, v3, v4
-docs/                        APPROACH, FLOW (mermaid), RULES_TABLE, DESIGN_DECISIONS, TESTING_MATRIX, ITERATIONS, PLATFORM
+docs/                        PROMPT_DESIGN, APPROACH, FLOW (mermaid), RULES_TABLE, DESIGN_DECISIONS, TESTING_MATRIX, ITERATIONS, PLATFORM
 eval/                        Groq client, turn tests, simulated-call scenarios, checks, runners, results/
 tests/live_call_scripts.md   12 live-call scripts (+2 Hindi)
 ```

@@ -101,7 +101,7 @@ Offline tests are deterministic turn-level checks (no LLM judge), run on Groq's 
 
 ## Prompt versions
 - [`prompt/system_prompt_retell_tested.md`](prompt/system_prompt_retell_tested.md): the **exact** prompt used in all 12 live calls.
-- [`prompt/system_prompt.md`](prompt/system_prompt.md) (v8): adds post-test fixes (no spoken reasoning, skip an already-answered loan question, facts inside questions count). These were checked offline only, not in new live calls.
+- [`prompt/system_prompt.md`](prompt/system_prompt.md) (v8): adds post-test fixes (no spoken reasoning, skip an already-answered loan question, facts inside questions count). These target issues seen in the live calls and have not yet been re-tested.
 - [`prompt/versions/`](prompt/versions/): every version, v0 draft to v8.
 
 ## Repo layout
